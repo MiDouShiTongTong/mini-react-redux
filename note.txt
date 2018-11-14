@@ -1,0 +1,459 @@
+Ducks Redux
+  - Ducks Redux 是一种模块化 Redux 的代码的规范, 用于减少不必要的目录及文件。
+  - https://github.com/erikras/ducks-modular-redux
+
+Ducks Redux(Hello World)
+  1.创建 reducer - src/store/app/index.js
+    // action type
+    const INCREMENT = 'app/increment';
+    const DECREMENT = 'app/decrement';
+    const ADD_MESSAGE = 'app/addMessage';
+
+    // state
+    const initState = {
+      count: 0,
+      messageList: []
+    };
+
+    // reducer
+    export default (state = initState, action) => {
+      console.log(state, action);
+      switch (action.type) {
+        case INCREMENT:
+          return {
+            ...state,
+            ...{
+              count: state.count + action.data
+            }
+          };
+        case DECREMENT:
+          return {
+            ...state,
+            ...{
+              count: state.count - action.data
+            }
+          };
+        case ADD_MESSAGE:
+          const { messageList } = state;
+          messageList.push(action.data);
+          return {
+            ...state,
+            ...{
+              messageList
+            }
+          };
+        default:
+          return {
+            ...state
+          };
+      }
+    }
+
+    // action
+    export const increment = (number) => {
+      return {
+        type: INCREMENT,
+        data: number
+      };
+    };
+
+    export const decrement = (number) => {
+      return {
+        type: DECREMENT,
+        data: number
+      };
+    };
+
+    export const addMessage = (message) => {
+      return {
+        type: ADD_MESSAGE,
+        data: message
+      };
+    };
+
+  2.创建 store 对象, 合并 reducer - src/store/index.js
+    import { createStore, combineReducers, applyMiddleware } from 'redux';
+    import { composeWithDevTools } from 'redux-devtools-extension';
+    import app from './app/index';
+
+    // 暴露 store
+    export default createStore(
+      // 封装多个 reducer
+      combineReducers({
+        app
+      }),
+      composeWithDevTools(applyMiddleware())
+    );
+
+  3.将 store 对象传递到组件中 - src/index.js
+    import React from 'react';
+    import ReactDOM from 'react-dom';
+    import App from './component/app';
+    // 引入 store
+    import store from './store';
+
+    ReactDOM.render(<App store={store}/>, document.getElementById('root'));
+
+    // state 发送变化重新渲染
+    store.subscribe(() => {
+      ReactDOM.render(<App store={store}/>, document.getElementById('root'));
+    });
+
+  4.组件中使用 store 对象来改变 redux 中的状态 - src/component/app.js
+    import React, { Component } from 'react';
+    import PropTypes from 'prop-types';
+    import { increment, decrement, addMessage } from '../store/app';
+
+    class App extends Component {
+      static propTypes = {
+        store: PropTypes.object.isRequired
+      };
+
+      increment = () => {
+        const { props, select } = this;
+        props.store.dispatch(increment(select.value * 1));
+      };
+
+      decrement = () => {
+        const { props, select } = this;
+        props.store.dispatch(decrement(select.value * 1));
+      };
+
+      incrementIfOdd = () => {
+        const { props, select } = this;
+        const { count } = props.store.getState().app;
+        if (count % 2 === 1) {
+          props.store.dispatch(increment(select.value * 1));
+        }
+      };
+
+      incrementAsync = () => {
+        const { props, select } = this;
+        setTimeout(() => {
+          props.store.dispatch(increment(select.value * 1));
+        }, 1000);
+      };
+
+      addMessage = () => {
+        const { props, input } = this;
+        props.store.dispatch(addMessage(input.value));
+      };
+
+      render() {
+        const { props } = this;
+        const { count, messageList } = props.store.getState().app;
+        return (
+          <div className="App">
+            <p>count: {count}</p>
+            <p>
+              <select ref={select => this.select = select}>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+              <button onClick={this.increment}>+</button>
+              <button onClick={this.decrement}>-</button>
+              <button onClick={this.incrementIfOdd}>increment if odd</button>
+              <button onClick={this.incrementAsync}>increment async</button>
+            </p>
+            <hr/>
+            <input type="text" ref={input => this.input = input}/>
+            <button onClick={this.addMessage}>add</button>
+            <ul>
+              {
+                messageList.map((message, index) => <li key={index}>{message}</li>)
+              }
+            </ul>
+          </div>
+        );
+      }
+    }
+
+    export default App;
+
+React Context
+  理解
+    - 当你觉得多层传递 props 麻烦, 可以使用 context
+  使用
+    - 一个组件指定了 context 数据, 所有组件都能被读取到, Redux 内部使用了 context
+
+React Context(Hello World)
+  // 需求: A, B, C 三个组件实现数据传递, 且不通过 props 进行数据传递
+
+  // 创建 context
+  const ThemeContext = React.createContext({
+    color: 'red'
+  });
+
+  class A extends React.Component {
+    render() {
+      // 父组件提供 context
+      return (
+        <ThemeContext.Provider value={{color: 'blue'}}>
+          <div>
+            <span>组件A</span>
+            <B/>
+          </div>
+        </ThemeContext.Provider>
+      );
+    }
+  }
+
+  class B extends React.Component {
+    render() {
+      return (
+        <div>
+          <span>组件B</span>
+          <C/>
+        </div>
+      );
+    }
+  }
+
+  class C extends React.Component {
+    render() {
+      // 子组件消费 context
+      return (
+        <ThemeContext.Consumer>
+          {
+            context => (
+              <div>
+                <span style={{color: context.color}}>组件C</span>
+              </div>
+            )
+          }
+        </ThemeContext.Consumer>
+      );
+    }
+  }
+
+  ReactDOM.render(
+    <A/>,
+    document.getElementById('root')
+  );
+
+Ducks React-Redux
+  简介
+    React-Redux 包含两个重要的对象
+      - Provider
+        值：组件类
+        作用：向所有容器子组件传递 store 对象
+      - connect
+        值：高阶函数
+        作用：包装组件成为容器组件, 让容器组建能操作 redux
+
+Ducks React-Redux(Hello World)
+  1. 创建 reducer - src/store/app/index.js
+    // action type
+    const INCREMENT = 'app/increment';
+    const INCREMENT_IF_ODD = 'app/incrementIfOdd';
+    const DECREMENT = 'app/decrement';
+    const ADD_MESSAGE = 'app/addMessage';
+
+    // state
+    const initState = {
+      count: 0,
+      messageList: []
+    };
+
+    // reducer
+    export default (state = initState, action) => {
+      console.log(state, action);
+      switch (action.type) {
+        case INCREMENT:
+          return {
+            ...state,
+            ...{
+              count: state.count + action.data
+            }
+          };
+        case INCREMENT_IF_ODD:
+          return {
+            ...state,
+            ...{
+              count: state.count % 2 === 1 ? state.count + action.data : state.count
+            }
+          };
+        case DECREMENT:
+          return {
+            ...state,
+            ...{
+              count: state.count - action.data
+            }
+          };
+        case ADD_MESSAGE:
+          const { messageList } = state;
+          messageList.push(action.data);
+          return {
+            ...state,
+            ...{
+              messageList: [...messageList]
+            }
+          };
+        default:
+          return {
+            ...state
+          };
+      }
+    }
+
+    // action
+    export const increment = (number) => {
+      return {
+        type: INCREMENT,
+        data: number
+      };
+    };
+
+    export const incrementIfOdd = (number) => {
+      return {
+        type: INCREMENT_IF_ODD,
+        data: number
+      };
+    };
+
+    export const decrement = (number) => {
+      return {
+        type: DECREMENT,
+        data: number
+      };
+    };
+
+    export const addMessage = (message) => {
+      return {
+        type: ADD_MESSAGE,
+        data: message
+      };
+    };
+
+  2.创建 store 对象, 合并 reducer - src/store/index.js
+    import { createStore, combineReducers, applyMiddleware } from 'redux';
+    import { composeWithDevTools } from 'redux-devtools-extension';
+    import app from './app/index';
+
+    // 暴露 store
+    export default createStore(
+      // 封装多个 reducer
+      combineReducers({
+        app
+      }),
+      composeWithDevTools(applyMiddleware())
+    );
+
+  3.创建 Provider 将 store 对象注册到 context 中 - src/index.js
+    import React from 'react';
+    import ReactDOM from 'react-dom';
+    import App from './component/app';
+    // 引入 store
+    import store from './store';
+    // 引入 Provider
+    import { Provider } from 'react-redux';
+
+
+    ReactDOM.render(
+      <Provider store={store}>
+        <App store={store}/>
+      </Provider>,
+      document.getElementById('root')
+    );
+
+  4.创建 connect 将组件包装为容器组件, 让容器组件能操作 redux - src/component/app.js
+    import React, { Component } from 'react';
+    import PropTypes from 'prop-types';
+    import { connect } from 'react-redux';
+    import { increment, incrementIfOdd, decrement, addMessage } from '../store/app';
+
+    export default connect(
+      // mapStateToProps
+      state => {
+        return {
+          count: state.app.count,
+          messageList: state.app.messageList
+        }
+      },
+      // mapDispatchToProps
+      {
+        increment,
+        incrementIfOdd,
+        decrement,
+        addMessage
+      }
+    )(
+      class App extends Component {
+        static propTypes = {
+          increment: PropTypes.func.isRequired,
+          incrementIfOdd: PropTypes.func.isRequired,
+          decrement: PropTypes.func.isRequired,
+          count: PropTypes.number.isRequired,
+          addMessage: PropTypes.func.isRequired,
+          messageList: PropTypes.array.isRequired
+        };
+
+        increment = () => {
+          const { props, select } = this;
+          props.increment(select.value * 1);
+        };
+
+        decrement = () => {
+          const { props, select } = this;
+          props.decrement(select.value * 1);
+        };
+
+        incrementIfOdd = () => {
+          const { props, select } = this;
+          console.log();
+          props.incrementIfOdd(select.value * 1);
+        };
+
+        incrementAsync = () => {
+          const { props, select } = this;
+          setTimeout(() => {
+            props.increment(select.value * 1);
+          }, 1000);
+        };
+
+        addMessage = () => {
+          const { props, input } = this;
+          props.addMessage(input.value);
+        };
+
+        render() {
+          const { props } = this;
+          const { count, messageList } = props;
+          console.log(messageList);
+          return (
+            <div className="App">
+              <p>count: {count}</p>
+              <p>
+                <select ref={select => this.select = select}>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+                <button onClick={this.increment}>+</button>
+                <button onClick={this.decrement}>-</button>
+                <button onClick={this.incrementIfOdd}>increment if odd</button>
+                <button onClick={this.incrementAsync}>increment async</button>
+              </p>
+              <hr/>
+              <input type="text" ref={input => this.input = input}/>
+              <button onClick={this.addMessage}>add</button>
+              <ul>
+                {
+                  props.messageList.map((message, index) => <li key={index}>{message}</li>)
+                }
+              </ul>
+            </div>
+          );
+        }
+      }
+    );
+
+
+
+
+
+
+
+
+
