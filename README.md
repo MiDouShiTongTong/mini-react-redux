@@ -1,4 +1,4 @@
-# job
+# mini-react-redux
 ### 运行
 - 安装
 ```shell
